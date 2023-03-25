@@ -5,12 +5,55 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {Client, LocalStream} from 'ion-sdk-js'
 import { IonSFUJSONRPCSignal } from 'ion-sdk-js/lib/signal/json-rpc-impl'
 import './chat.scss'
+import { useState } from 'react'
+import { useRef } from 'react'
 
 const Chat = () => {
     const id = useParams()['id']
     const navigate = useNavigate();
-    let signalRef;
-    let clientRef;
+    let signalRef = useRef();
+    let clientRef =  useRef();
+
+    const [deviceState, setDeviceState] = useState({
+      cam: true,
+      mic: true,
+    })
+
+    const {cam, mic} = deviceState;
+
+    const toggleMicrophone = () => {
+      const audio = document.getElementById('user-video').srcObject.getTrack('audio');
+      if (audio.enabled) {
+          audio.enabled = false;
+          setDeviceState(state => ({
+            ...state,
+            mic: false,
+          }))
+      }else {
+          audio.enabled = true;
+          setDeviceState(state => ({
+            ...state,
+            mic: true,
+          }))
+      }
+    }
+
+    const toggleCamera = () => {
+        const video = document.getElementById('user-video').srcObject.getTrack('video');
+        if (video.enabled) {
+            video.enabled = false;
+            setDeviceState(state => ({
+              ...state,
+              cam: false,
+            }))
+        }else {
+            video.enabled = true;
+            setDeviceState(state => ({
+              ...state,
+              cam: true,
+            }))
+        }
+    }
 
     useEffect(() => {
       (async () => {
@@ -31,14 +74,14 @@ const Chat = () => {
     }
 
     const startCall = () => {
-      signalRef = new IonSFUJSONRPCSignal("ws://localhost:7000/ws");
-      clientRef = new Client(signalRef, config);
+      signalRef.current = new IonSFUJSONRPCSignal("ws://localhost:7000/ws");
+      clientRef.current = new Client(signalRef.current, config);
 
-      signalRef.onopen = () => clientRef.join(id);
+      signalRef.current.onopen = () => clientRef.current.join(id);
 
-      clientRef.ontrack = (track, stream) => {
+      clientRef.current.ontrack = (track, stream) => {
         const outerDiv = document.createElement('div');
-        outerDiv.classList.add('col-md-3', 'p-3')
+        outerDiv.classList.add('col-md-6', 'p-3')
 
         const innerDiv = document.createElement('div');
         innerDiv.classList.add('rounded', 'p-0', 'full')
@@ -53,7 +96,6 @@ const Chat = () => {
               video.srcObject = stream;
               video.autoplay = true;
               video.controls = false;
-              video.muted = true;
 
               innerDiv.appendChild(video);
               outerDiv.appendChild(innerDiv);
@@ -74,7 +116,7 @@ const Chat = () => {
 
     const show = async (device) => {
       const outerDiv = document.createElement('div');
-      outerDiv.classList.add('col-md-3', 'p-3')
+      outerDiv.classList.add('col-md-6', 'p-3')
 
       const innerDiv = document.createElement('div');
       innerDiv.classList.add('rounded', 'p-0', 'full')
@@ -86,14 +128,12 @@ const Chat = () => {
         case 'camera':
             try {
                 const media = await LocalStream.getUserMedia({
-                    resolution: 'vga',
-                    audio: true,
-                    codec: 'vp8',
-    
+                  resolution: 'vga',
+                  audio: true,
+                  codec: 'vp8',
                 })
 
                 video.autoplay = true;
-                video.muted = true;
                 video.id = 'user-video'
                 video.srcObject = media; 
 
@@ -101,47 +141,55 @@ const Chat = () => {
                 innerDiv.appendChild(video);
                 document.getElementById('videos-container').appendChild(outerDiv);
 
-                clientRef.publish(media);
+                clientRef.current.publish(media);
             }catch(error) {
                 console.log('camera error:', error)
             }
-            break;
+        break;
+
         case 'screen':
           try {
-              const media = await LocalStream.getUserMedia({
-                  resolution: 'vga',
-                  audio: true,
-                  codec: 'vp8',
-  
-              })
+            const media = await LocalStream.getDisplayMedia({
+              resolution: 'vga',
+              audio: true,
+              codec: 'vp8',
+            })
 
-              video.autolay = true;
-              video.muted = true;
-              video.id = 'user-video'
-              video.srcObject = media; 
+            video.autoplay = true;
+            video.srcObject = media; 
 
-              innerDiv.appendChild(video);
-              outerDiv.appendChild(innerDiv);
-              document.getElementById('videos-container').appendChild(outerDiv);
+            outerDiv.appendChild(innerDiv);
+            innerDiv.appendChild(video);
+            document.getElementById('videos-container').appendChild(outerDiv);
 
-              clientRef.publish(media);
+            clientRef.current.publish(media);
           }catch(error) {
-              console.log('camera error:', error)
+            console.log('camera error:', error)
           }
       }
     }
     
   return (
     <div className='container-fluid bg-dark text-light'>
-      <div className="row" id='videos-container'>
+      <div className="row d-flex justify-content-center align-items-center" id='videos-container'>
 
-        {/* <div className="col-md-3 p-3">
+        {/* <div className="col-md-6 p-3">
           <div className='bg-light rounded p-0 full'>
             <video className='full'></video>
           </div>
         </div> */}
 
       </div>
+
+      <div id="media-controls" className="text-center my-3">
+        {mic && <i className="bi bi-mic-fill display-4 mx-2 bg-success text-light p-3 rounded-circle" id="mic-on-icon" onClick={toggleMicrophone}></i>}
+        {!mic && <i className="bi bi-mic-mute-fill display-4 mx-2 bg-danger text-light p-3 rounded-circle" id="mic-off-icon" onClick={toggleMicrophone}></i>}
+        {cam && <i className="bi bi-camera-video-fill display-4 mx-2 bg-success text-light p-3 rounded-circle" id="cam-on-icon" onClick={toggleCamera}></i>}
+        {!cam && <i className="bi bi-camera-video-off-fill display-4 mx-2 bg-danger text-light p-3 rounded-circle" id="cam-off-icon" onClick={toggleCamera}></i>}
+        <i className="bi bi-display display-4 mx-2 bg-success text-light p-3 rounded-circle" onClick={() => show('screen')}></i>
+        <a href="/"><i className="bi bi-door-open-fill display-4 mx-2 bg-danger text-light p-3 rounded-circle"></i></a>
+      </div>
+
     </div>
   )
 }
