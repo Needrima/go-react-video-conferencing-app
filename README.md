@@ -1,1 +1,1 @@
-# go-react-video-conferencing-app
+# video conferencing app with GO, React, pion-webrtc/ion-sfu

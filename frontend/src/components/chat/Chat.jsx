@@ -17,14 +17,11 @@ const Chat = () => {
         try {
           const {data:{valid}} = await axios.get(`http://localhost:8080/validate_room_id/${id}`);
           alert('welcome new user');
+          startCall();
         }catch(error) {
           navigate("/");
         }
       })();
-    }, [])
-
-    useEffect(() => {
-      startCall();
     }, [])
 
     const config = {
@@ -48,21 +45,21 @@ const Chat = () => {
 
         const video = document.createElement('video')
         video.classList.add('full', 'rounded')
+        
         if (track.kind === 'video') {
           track.onunmute = () => { // if there is a track
               outerDiv.id = track.id;
+
               video.srcObject = stream;
               video.autoplay = true;
               video.controls = false;
               video.muted = true;
 
-              console.log('adding track:', track.id)
               innerDiv.appendChild(video);
               outerDiv.appendChild(innerDiv);
               document.getElementById('videos-container').appendChild(outerDiv);
 
               stream.onremovetrack = (e) => {
-                  console.log('about to remove:', e.track.kind);
                   if (e.track.kind === 'video') {
                       const videoDivToRemove = document.getElementById(e.track.id);
                       document.getElementById('videos-container').removeChild(videoDivToRemove);
